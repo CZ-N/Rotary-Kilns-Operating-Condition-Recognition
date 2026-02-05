@@ -1,0 +1,733 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>CR CLIP · 多模态工况识别</title>
+  <meta name="description" content="CR CLIP 多模态工况识别模型前端界面（图像 + DCS）"/>
+
+  <style>
+    :root{
+      --text: rgba(255,255,255,0.92);
+      --muted: rgba(255,255,255,0.70);
+      --card-bg: rgba(255,255,255,0.10);
+      --card-border: rgba(255,255,255,0.18);
+      --shadow: 0 18px 60px rgba(0,0,0,0.38);
+      --radius: 18px;
+
+      --ok: rgba(74,222,128,0.95);
+      --warn: rgba(251,191,36,0.95);
+      --bad: rgba(248,113,113,0.95);
+
+      --btn-bg: rgba(255,255,255,0.14);
+      --btn-border: rgba(255,255,255,0.28);
+      --btn-hover: rgba(255,255,255,0.20);
+
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    *{ box-sizing: border-box; }
+    body{
+      margin: 0;
+      min-height: 100vh;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+                   Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+      color: var(--text);
+      overflow-x: hidden;
+
+      background: url("assets/bg.jpg") center/cover no-repeat fixed;
+    }
+    body::before{
+      content:"";
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(1200px 800px at 20% 10%, rgba(0,0,0,0.35), transparent 60%),
+        linear-gradient(to bottom, rgba(0,0,0,0.55), rgba(0,0,0,0.82));
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .container{
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 46px 18px 70px;
+    }
+
+    header{
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .title h1{
+      margin: 0 0 8px 0;
+      font-size: clamp(28px, 4vw, 46px);
+      line-height: 1.12;
+      letter-spacing: 0.3px;
+    }
+    .title p{
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.75;
+      font-size: 15.5px;
+      max-width: 86ch;
+    }
+
+    .topbadge{
+      flex: 0 0 auto;
+      padding: 10px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--card-border);
+      background: rgba(255,255,255,0.10);
+      backdrop-filter: blur(10px);
+      color: var(--muted);
+      font-size: 12.5px;
+      white-space: nowrap;
+    }
+
+    .grid{
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 16px;
+      margin-top: 14px;
+    }
+    @media (max-width: 980px){
+      header{ flex-direction: column; }
+      .grid{ grid-template-columns: 1fr; }
+    }
+
+    .card{
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+      padding: 16px 16px 14px;
+    }
+    .card h2{
+      margin: 0 0 10px 0;
+      font-size: 18.5px;
+      letter-spacing: 0.2px;
+    }
+    .card p, .card li{
+      color: var(--muted);
+      line-height: 1.75;
+      font-size: 14.7px;
+    }
+
+    .kvs{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    @media (max-width: 520px){
+      .kvs{ grid-template-columns: 1fr; }
+    }
+    .kv{
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(0,0,0,0.10);
+      border-radius: 14px;
+      padding: 12px 12px 10px;
+    }
+    .kv .k{
+      color: rgba(255,255,255,0.86);
+      font-weight: 700;
+      font-size: 12.8px;
+      letter-spacing: 0.2px;
+    }
+    .kv .v{
+      margin-top: 6px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+      font-family: var(--mono);
+      word-break: break-word;
+    }
+
+    .hr{
+      height: 1px;
+      background: rgba(255,255,255,0.14);
+      border: 0;
+      margin: 14px 0;
+    }
+
+    .row{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    @media (max-width: 680px){
+      .row{ grid-template-columns: 1fr; }
+    }
+
+    label{
+      display: block;
+      font-size: 12.8px;
+      color: rgba(255,255,255,0.86);
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      margin-bottom: 6px;
+    }
+
+    .input, .select{
+      width: 100%;
+      padding: 12px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.22);
+      background: rgba(0,0,0,0.12);
+      color: rgba(255,255,255,0.92);
+      outline: none;
+      font-size: 14px;
+    }
+
+    .btn{
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--btn-border);
+      background: var(--btn-bg);
+      color: rgba(255,255,255,0.92);
+      font-weight: 800;
+      letter-spacing: 0.3px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: transform .08s ease, background .12s ease, border-color .12s ease;
+      user-select: none;
+    }
+    .btn:hover{
+      transform: translateY(-1px);
+      background: var(--btn-hover);
+      border-color: rgba(255,255,255,0.36);
+    }
+    .btn:active{ transform: translateY(0); }
+
+    .btn.secondary{
+      font-weight: 700;
+      background: rgba(0,0,0,0.12);
+      border-color: rgba(255,255,255,0.20);
+    }
+
+    .status{
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(0,0,0,0.10);
+      border-radius: 14px;
+      padding: 10px 12px;
+      margin-top: 10px;
+    }
+    .status .left{
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .dot{
+      width: 10px; height: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.35);
+      box-shadow: 0 0 0 4px rgba(255,255,255,0.08);
+      flex: 0 0 auto;
+    }
+    .status .msg{
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .status .rt{
+      font-family: var(--mono);
+      font-size: 12.5px;
+      color: rgba(255,255,255,0.75);
+      white-space: nowrap;
+    }
+
+    .resultBig{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    @media (max-width: 680px){
+      .resultBig{ grid-template-columns: 1fr; }
+    }
+    .resultBox{
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(0,0,0,0.10);
+      border-radius: 14px;
+      padding: 12px 12px 10px;
+    }
+    .resultBox .k{
+      font-weight: 800;
+      color: rgba(255,255,255,0.86);
+      font-size: 12.8px;
+      letter-spacing: 0.2px;
+    }
+    .resultBox .v{
+      margin-top: 8px;
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 0.3px;
+      color: rgba(255,255,255,0.92);
+    }
+    .chip{
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(0,0,0,0.10);
+      font-size: 12.5px;
+      color: rgba(255,255,255,0.80);
+      margin: 6px 6px 0 0;
+    }
+
+    table{
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      overflow: hidden;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(0,0,0,0.10);
+    }
+    th, td{
+      padding: 10px 10px;
+      font-size: 13px;
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.80);
+      text-align: left;
+      vertical-align: top;
+    }
+    th{
+      color: rgba(255,255,255,0.88);
+      font-weight: 900;
+      letter-spacing: 0.2px;
+      background: rgba(255,255,255,0.06);
+    }
+    tr:last-child td{ border-bottom: 0; }
+
+    .mono{ font-family: var(--mono); }
+    footer{
+      margin-top: 18px;
+      text-align: center;
+      color: rgba(255,255,255,0.62);
+      font-size: 12.8px;
+      line-height: 1.65;
+    }
+    a{ color: rgba(255,255,255,0.90); }
+    a:hover{ color: rgba(255,255,255,1); }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <div class="title">
+        <h1>CR CLIP · 多模态工况识别</h1>
+        <p>
+          面向回转窑等复杂工业过程的工况识别系统，融合火焰图像语义表征与 DCS 过程变量时序信息，实现对
+          <b>过烧（Over-burning）</b>、<b>正常（Normal）</b>、<b>欠烧（Under-burning）</b> 的在线判别。
+          页面完成数据上传、参数配置、推理触发与结果展示，并记录每次推理的输出。
+        </p>
+      </div>
+      <div class="topbadge">
+        Model: <span class="mono">CR-CLIP</span> · UI Build <span class="mono" id="buildId">—</span>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- 左侧：模型说明与接口规范（明确） -->
+      <section class="card">
+        <h2>模型信息</h2>
+        <div class="kvs">
+          <div class="kv">
+            <div class="k">任务定义</div>
+            <div class="v">Operating Condition Recognition (3-class)</div>
+          </div>
+          <div class="kv">
+            <div class="k">输入</div>
+            <div class="v">Image (RGB) + DCS (CSV/JSON)</div>
+          </div>
+          <div class="kv">
+            <div class="k">输出</div>
+            <div class="v">label + confidence + top3</div>
+          </div>
+          <div class="kv">
+            <div class="k">类别集合</div>
+            <div class="v">Over-burning / Normal / Under-burning</div>
+          </div>
+        </div>
+
+        <hr class="hr"/>
+
+        <h2>推理接口（HTTP）</h2>
+        <p>
+          前端以 <span class="mono">POST</span> 请求调用后端推理服务。接口地址由页面参数 <span class="mono">API_URL</span> 指定。
+        </p>
+
+        <div class="kvs">
+          <div class="kv">
+            <div class="k">Endpoint</div>
+            <div class="v mono" id="endpointText">/predict</div>
+          </div>
+          <div class="kv">
+            <div class="k">Content-Type</div>
+            <div class="v mono">multipart/form-data</div>
+          </div>
+          <div class="kv">
+            <div class="k">Form fields</div>
+            <div class="v mono">
+              image: file<br/>
+              dcs: file<br/>
+              threshold: number<br/>
+              window_len: integer<br/>
+              sample_interval_s: number
+            </div>
+          </div>
+          <div class="kv">
+            <div class="k">Response JSON</div>
+            <div class="v mono">
+              label: string<br/>
+              confidence: number<br/>
+              top3: [{label, score}]<br/>
+              latency_ms: number<br/>
+              timestamp: string
+            </div>
+          </div>
+        </div>
+
+        <hr class="hr"/>
+
+        <h2>系统状态</h2>
+        <div class="status">
+          <div class="left">
+            <div class="dot" id="statusDot"></div>
+            <div class="msg" id="statusMsg">等待上传图像与 DCS 文件。</div>
+          </div>
+          <div class="rt" id="statusRt">READY</div>
+        </div>
+
+        <p style="margin-top:10px;">
+          部署到 GitHub Pages 后，页面可公开访问。推理服务需要独立部署并支持跨域访问（CORS）。
+        </p>
+      </section>
+
+      <!-- 右侧：上传、参数、推理、结果 -->
+      <aside class="card">
+        <h2>输入与推理</h2>
+
+        <div class="row">
+          <div>
+            <label for="imgFile">火焰图像文件</label>
+            <input class="input" id="imgFile" type="file" accept="image/*"/>
+          </div>
+          <div>
+            <label for="dcsFile">DCS 数据文件（CSV / JSON）</label>
+            <input class="input" id="dcsFile" type="file" accept=".csv,.json,text/csv,application/json"/>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <div>
+            <label for="threshold">置信度阈值（0.00–1.00）</label>
+            <input class="input" id="threshold" type="number" step="0.01" min="0" max="1" value="0.60"/>
+          </div>
+          <div>
+            <label for="windowLen">窗口长度（秒）</label>
+            <input class="input" id="windowLen" type="number" step="1" min="1" value="60"/>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <div>
+            <label for="sampleInterval">采样间隔（秒）</label>
+            <input class="input" id="sampleInterval" type="number" step="0.1" min="0.1" value="1.0"/>
+          </div>
+          <div>
+            <label for="apiUrl">推理服务地址（API_URL）</label>
+            <input class="input mono" id="apiUrl" type="text" value="https://YOUR_DOMAIN_OR_IP/predict"/>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:12px;">
+          <button class="btn" id="runBtn">🚀 开始推理</button>
+          <button class="btn secondary" id="resetBtn">⟲ 清空状态</button>
+        </div>
+
+        <hr class="hr"/>
+
+        <h2>识别结果</h2>
+
+        <div class="resultBig">
+          <div class="resultBox">
+            <div class="k">预测工况</div>
+            <div class="v" id="predLabel">—</div>
+          </div>
+          <div class="resultBox">
+            <div class="k">置信度</div>
+            <div class="v" id="predConf">—</div>
+          </div>
+        </div>
+
+        <div class="resultBox" style="margin-top:10px;">
+          <div class="k">Top-3</div>
+          <div id="top3" style="margin-top:8px;">
+            <span class="chip">—</span>
+          </div>
+        </div>
+
+        <div class="kvs" style="margin-top:10px;">
+          <div class="kv">
+            <div class="k">耗时</div>
+            <div class="v mono" id="latency">—</div>
+          </div>
+          <div class="kv">
+            <div class="k">返回时间</div>
+            <div class="v mono" id="serverTs">—</div>
+          </div>
+        </div>
+
+        <hr class="hr"/>
+
+        <h2>推理记录</h2>
+        <table aria-label="inference history">
+          <thead>
+            <tr>
+              <th style="width: 22%;">时间</th>
+              <th style="width: 28%;">预测工况</th>
+              <th style="width: 18%;">置信度</th>
+              <th style="width: 16%;">耗时</th>
+              <th style="width: 16%;">阈值</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody">
+            <tr>
+              <td class="mono">—</td>
+              <td>—</td>
+              <td class="mono">—</td>
+              <td class="mono">—</td>
+              <td class="mono">—</td>
+            </tr>
+          </tbody>
+        </table>
+      </aside>
+    </div>
+
+    <footer>
+      <div>© <span id="year"></span> CR CLIP · Multimodal Operating Condition Recognition</div>
+      <div class="mono" style="margin-top:6px;">Direct URL: https://username.github.io/repo-name/</div>
+    </footer>
+  </div>
+
+  <script>
+    // 固定：生成一个随机 build id（用于区分页面是否已更新）
+    // 你每次改代码 push 后，刷新页面会看到 build id 变化，便于确认内容同步更新
+    const buildId = Math.random().toString(16).slice(2, 10).toUpperCase();
+    document.getElementById("buildId").textContent = buildId;
+
+    document.getElementById("year").textContent = new Date().getFullYear();
+
+    const statusDot = document.getElementById("statusDot");
+    const statusMsg = document.getElementById("statusMsg");
+    const statusRt  = document.getElementById("statusRt");
+
+    const imgFile = document.getElementById("imgFile");
+    const dcsFile = document.getElementById("dcsFile");
+    const threshold = document.getElementById("threshold");
+    const windowLen = document.getElementById("windowLen");
+    const sampleInterval = document.getElementById("sampleInterval");
+    const apiUrl = document.getElementById("apiUrl");
+
+    const runBtn = document.getElementById("runBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    const predLabel = document.getElementById("predLabel");
+    const predConf = document.getElementById("predConf");
+    const top3 = document.getElementById("top3");
+    const latency = document.getElementById("latency");
+    const serverTs = document.getElementById("serverTs");
+    const historyBody = document.getElementById("historyBody");
+    const endpointText = document.getElementById("endpointText");
+
+    function setStatus(state, message, rt){
+      statusMsg.textContent = message;
+      statusRt.textContent = rt;
+
+      // 状态灯颜色：READY/WORKING/OK/ERROR
+      if(state === "READY"){
+        statusDot.style.background = "rgba(255,255,255,0.35)";
+      } else if(state === "WORKING"){
+        statusDot.style.background = "rgba(251,191,36,0.95)";
+      } else if(state === "OK"){
+        statusDot.style.background = "rgba(74,222,128,0.95)";
+      } else if(state === "ERROR"){
+        statusDot.style.background = "rgba(248,113,113,0.95)";
+      }
+    }
+
+    function formatPct(x){
+      if(typeof x !== "number" || Number.isNaN(x)) return "—";
+      const v = Math.max(0, Math.min(1, x));
+      return (v * 100).toFixed(2) + "%";
+    }
+
+    function clearResults(){
+      predLabel.textContent = "—";
+      predConf.textContent = "—";
+      top3.innerHTML = '<span class="chip">—</span>';
+      latency.textContent = "—";
+      serverTs.textContent = "—";
+      historyBody.innerHTML = `
+        <tr>
+          <td class="mono">—</td>
+          <td>—</td>
+          <td class="mono">—</td>
+          <td class="mono">—</td>
+          <td class="mono">—</td>
+        </tr>`;
+    }
+
+    function addHistoryRow(ts, label, conf, latMs, thr){
+      // 清空默认占位行
+      const hasOnlyPlaceholder = historyBody.children.length === 1 && historyBody.children[0].innerText.trim() === "—\n—\n—\n—\n—";
+      if(hasOnlyPlaceholder) historyBody.innerHTML = "";
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="mono">${ts}</td>
+        <td>${label}</td>
+        <td class="mono">${formatPct(conf)}</td>
+        <td class="mono">${latMs} ms</td>
+        <td class="mono">${Number(thr).toFixed(2)}</td>
+      `;
+      historyBody.prepend(tr);
+    }
+
+    function validateInputs(){
+      if(!imgFile.files || imgFile.files.length === 0) return "必须上传火焰图像文件。";
+      if(!dcsFile.files || dcsFile.files.length === 0) return "必须上传 DCS 数据文件（CSV 或 JSON）。";
+      const thr = Number(threshold.value);
+      if(!(thr >= 0 && thr <= 1)) return "置信度阈值必须在 0.00 到 1.00 之间。";
+      const wl = Number(windowLen.value);
+      if(!(wl >= 1)) return "窗口长度必须为正整数秒。";
+      const si = Number(sampleInterval.value);
+      if(!(si >= 0.1)) return "采样间隔必须不小于 0.1 秒。";
+      const url = (apiUrl.value || "").trim();
+      if(!url.startsWith("http://") && !url.startsWith("https://")) return "推理服务地址必须以 http:// 或 https:// 开头。";
+      return null;
+    }
+
+    async function runInference(){
+      const err = validateInputs();
+      if(err){
+        setStatus("ERROR", err, "INPUT_ERROR");
+        return;
+      }
+
+      const url = apiUrl.value.trim();
+      endpointText.textContent = url;
+
+      setStatus("WORKING", "正在请求推理服务，请稍候。", "WORKING");
+      runBtn.disabled = true;
+
+      const form = new FormData();
+      form.append("image", imgFile.files[0]);
+      form.append("dcs", dcsFile.files[0]);
+      form.append("threshold", String(Number(threshold.value)));
+      form.append("window_len", String(parseInt(windowLen.value, 10)));
+      form.append("sample_interval_s", String(Number(sampleInterval.value)));
+
+      const t0 = performance.now();
+      try{
+        const resp = await fetch(url, { method: "POST", body: form });
+        const t1 = performance.now();
+
+        if(!resp.ok){
+          const text = await resp.text().catch(()=> "");
+          setStatus("ERROR", `推理服务返回 HTTP ${resp.status}。${text ? " 详情: " + text : ""}`, "HTTP_ERROR");
+          return;
+        }
+
+        const data = await resp.json();
+
+        // 强约束：返回字段必须存在
+        const label = String(data.label ?? "");
+        const conf = Number(data.confidence);
+        const top = Array.isArray(data.top3) ? data.top3 : [];
+        const latMs = Number.isFinite(Number(data.latency_ms)) ? Number(data.latency_ms) : Math.round(t1 - t0);
+        const ts = String(data.timestamp ?? new Date().toISOString());
+
+        if(!label || !Number.isFinite(conf)){
+          setStatus("ERROR", "推理服务返回 JSON 字段不完整：必须包含 label 与 confidence。", "DATA_ERROR");
+          return;
+        }
+
+        predLabel.textContent = label;
+        predConf.textContent = formatPct(conf);
+        latency.textContent = `${latMs} ms`;
+        serverTs.textContent = ts;
+
+        // Top-3 渲染
+        if(top.length > 0){
+          top3.innerHTML = "";
+          top.slice(0,3).forEach(item => {
+            const l = String(item.label ?? "");
+            const s = Number(item.score);
+            const chip = document.createElement("span");
+            chip.className = "chip";
+            chip.textContent = `${l} · ${formatPct(s)}`;
+            top3.appendChild(chip);
+          });
+        } else {
+          top3.innerHTML = `<span class="chip">${label} · ${formatPct(conf)}</span>`;
+        }
+
+        addHistoryRow(ts, label, conf, latMs, Number(threshold.value));
+        setStatus("OK", "推理完成，结果已更新。", "OK");
+      }catch(e){
+        const msg = (e && e.message) ? e.message : String(e);
+        setStatus("ERROR", `无法连接推理服务：${msg}`, "NETWORK_ERROR");
+      }finally{
+        runBtn.disabled = false;
+      }
+    }
+
+    function resetAll(){
+      imgFile.value = "";
+      dcsFile.value = "";
+      threshold.value = "0.60";
+      windowLen.value = "60";
+      sampleInterval.value = "1.0";
+      setStatus("READY", "等待上传图像与 DCS 文件。", "READY");
+      clearResults();
+    }
+
+    imgFile.addEventListener("change", () => {
+      setStatus("READY", "图像文件已选择。请确认 DCS 文件与参数后开始推理。", "READY");
+    });
+    dcsFile.addEventListener("change", () => {
+      setStatus("READY", "DCS 文件已选择。请确认图像文件与参数后开始推理。", "READY");
+    });
+
+    runBtn.addEventListener("click", runInference);
+    resetBtn.addEventListener("click", resetAll);
+
+    // 初始状态
+    resetAll();
+  </script>
+</body>
+</html>
